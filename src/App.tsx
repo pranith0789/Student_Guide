@@ -3,8 +3,8 @@ import SignUp from "./Authentication_Pages/SignUp"
 function App() {
   return (
     <>
-      <Login></Login>
-      {/* <SignUp></SignUp> */}
+      {/* <Login></Login> */}
+      <SignUp></SignUp>
     </>
   )
 }
