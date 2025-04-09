@@ -1,11 +1,12 @@
 import TextField from '@mui/material/TextField';
+import axios from 'axios'
 import { ChangeEvent, useState } from 'react';
 const Login = () => {
   const[email,setEmail] = useState<string>("")
   const[password,setPassword] = useState<string>("")
   const[emailError,setEmailError] = useState<string>("")
   const[passwordError,setPasswordError] = useState<string>("")
-  const[rememberMe,setRememberMe] = useState<boolean>(false)
+  const[error,setError] = useState<string>("")
   
   const handlemail = (event: ChangeEvent<HTMLInputElement>) => {
     setEmail(event.target.value)
@@ -37,9 +38,20 @@ const Login = () => {
     return passwordRegex.test(password);
   }
 
-  const handleRememberMe = (event: ChangeEvent<HTMLInputElement>) => {
-    setRememberMe(event.target.checked);
-  };
+
+  const handlelogin = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if(!email.trim() || !password.trim()){
+      setError("Enter valid credentials")
+    }
+    try{
+      const responce = await axios.post('http://localhost:3000/login',{email,password})
+      console.log("Login Successfull",responce.data)
+      
+    }catch(Error){
+        console.log("Login failed",Error)
+    }
+  }
 
   return (
     <div className='w-screen min h-screen bg-gradient-to-b from-purple-400 to-indigo-400 items-center justify-center flex'>
@@ -60,7 +72,7 @@ const Login = () => {
                   type="email"
                   value={email}
                   onChange={handlemail}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${emailError ? 'border-red-500' : 'border-gray-300'}`}                 
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${emailError ? 'border-red-600' : 'border-gray-300'}`}                 
                   placeholder="Enter your email"
                 />
               </div>
@@ -76,12 +88,12 @@ const Login = () => {
                   type="password"
                   value={password}
                   onChange={handlepassword}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${passwordError ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${passwordError ? 'border-red-600' : 'border-gray-300'}`}
                   placeholder="Enter your password"
                 />
               </div>
               <div className='w-64'>
-                <button className='w-full mt-5'>Login</button>
+                <button className='w-full mt-5' onClick={handlelogin}>Login</button>
               </div>
             </div>
           </div>
