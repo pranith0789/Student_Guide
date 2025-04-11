@@ -114,7 +114,7 @@ const SignUp = () => {
             <p className='underline text-blue-700 text-sm cursor-pointer'>Forgot Password?</p>
           </div>
           <div className='w-64'>
-              <button className='w-full'>SignUP</button>
+              <button className='w-full'>Create Account</button>
           </div>
         </div>
       </div>
