@@ -7,6 +7,9 @@ const SignUp = () => {
             <div>
                 <img src='https://img.freepik.com/vector-premium/hombre-trabajando-su-computadora_801395-340.jpg' alt='SignUp page' className='h-full w-1/2'/>
             </div>
+            <div className='h-full w-1/2 bg-red-700 flex justify-center items-center'>
+              
+            </div>
         </div>
     </div>
   )
