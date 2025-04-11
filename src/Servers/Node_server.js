@@ -9,7 +9,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-mongoose.connect("mongodb://localhost:27017/Accounts")
+mongoose.connect("mongodb://localhost:27017/Users")
         .then(() => {
             console.log("DB Connected")
         }).catch((err) => { 
@@ -20,22 +20,22 @@ const userschema = new mongoose.Schema({
     FirstName  : {type:String,required:true},
     LastName   : {type:String,required:true},
     Email      : {type:String,required:true,unique:true},
-    Password   : {type:String,required:true},
+    password   : {type:String,required:true},
 });
 
-const User = mongoose.model("User",userschema,"users")
+const User = mongoose.model("User",userschema,"Users")
 
 app.post("/login",async(req,res) => {
     console.log("Received login information")
     
-    const{email,password} = req.body
+    const{Email,password} = req.body
     try{
-        const foundUser = await User.findOne({email})
+        const foundUser = await User.findOne({Email})
         if(!foundUser){
             console.log("user not found")
             return res.status(400).json({message:"user not found"})
         }
-        const isvalidpassword = await bcrypt.compare(Password,foundUser.Password)
+        const isvalidpassword = await bcrypt.compare(password,foundUser.password)
         if(!isvalidpassword){
             console.log("Incorrect Password")
             return res.status(401).json({message:"Incorrect Password"})
@@ -45,6 +45,27 @@ app.post("/login",async(req,res) => {
     }catch(err){
         console.log("Error logging in:",err)
         return res.status(500).json({message:"Error logging in user"})
+    }
+})
+
+app.post("/Register",async(req,res) => {
+    console.log("Received registration request",req.body)
+    const{FirstName,LastName,Email,password}=req.body
+    try{
+        const excistingUser = await User.findOne({Email})
+        if(excistingUser){
+            console.log("User already exist",Email)
+            return res.status(400).json({message:"User already exist"})
+        }
+        const hashedPassword = await bcrypt.hash(password,10)
+        const newUser = new User({FirstName,LastName,Email,password:hashedPassword})
+        await newUser.save()
+
+        console.log("User registered:",newUser)
+        return res.status(201).json({message:"User created"})
+    }catch(err){
+        console.log("Can't create a user",err)
+        return  res.status(500).json({message:"Can't create a user"})
     }
 })
 

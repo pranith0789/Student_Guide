@@ -1,16 +1,19 @@
 import React, { useState } from 'react'
-
+import axios from 'axios'
 const SignUp = () => {
   const [FirstName, setFirstName] = useState<string>("")
-  const [SecondName, setSecondName] = useState<string>("")
+  const [LastName, setSecondName] = useState<string>("")
   const [Email, setEmail] = useState<string>("")
-  const [Password, setPassword] = useState<string>("")
+  const [password, setPassword] = useState<string>("")
   const [emailError, setEmailError] = useState<boolean>(false)
   const [passwordError, setPasswordError] = useState<boolean>(false)
   const [nameError, setnameError] = useState<boolean>(false)
+  const[Error,setError] = useState<string>("")
+
   const handleFirstName = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFirstName(event.target.value)
   }
+
   const handleSecondName = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newSecondName = event.target.value;
     setSecondName(newSecondName);
@@ -21,6 +24,7 @@ const SignUp = () => {
       setnameError(false);
     }
   }
+
   const handleEmail = (event: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(event.target.value)
     if (Email.length > 0 && !validEmail(Email)) {
@@ -30,15 +34,17 @@ const SignUp = () => {
       setEmailError(false)
     }
   }
+
   const handlepassword = (event: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(event.target.value)
-    if (Password.length > 0 && !validpassword(Password)) {
+    if (password.length > 0 && !validpassword(password)) {
       setPasswordError(true)
     }
     else {
       setPasswordError(false)
     }
   }
+
   const validEmail = (email: string): boolean => {
     const emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -48,6 +54,23 @@ const SignUp = () => {
     const passwordRegex: RegExp = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
     return passwordRegex.test(password);
   }
+
+  const handleSignUp = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if(Email.trim().length==0 && password.trim().length==0){
+      setError("Enter valid credentials")
+    }
+    else{
+      setError("")
+    }
+    try{
+        const responce = await axios.post('http://localhost:3000/Register',{FirstName,LastName,Email,password})
+        console.log("User registered",responce.data)
+    }catch(err){
+        console.log("User not registered",err)
+    }
+  }
+
   return (
     <div className='w-screen min-h-screen flex justify-center items-center bg-gradient-to-b from-gray-100 to-gray-700'>
       <div className='w-3/4 h-3/4 flex justify-start items-center shadow-2xl'>
@@ -78,7 +101,7 @@ const SignUp = () => {
             <label htmlFor='SecondName' className='block text-sm font-medium text-gray-700 mb-1'>SecondName</label>
             <input
               id='SecondName'
-              value={SecondName}
+              value={LastName}
               onChange={handleSecondName}
               type='name'
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${nameError ? 'border-red-700' : 'border-gray-500'}`}
@@ -103,7 +126,7 @@ const SignUp = () => {
             <input
               id='password'
               type='password'
-              value={Password}
+              value={password}
               onChange={handlepassword}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${passwordError ? 'border-red-700' : 'border-gray-500'}`}
               placeholder='Enter your password'
@@ -114,7 +137,10 @@ const SignUp = () => {
             <p className='underline text-blue-700 text-sm cursor-pointer'>Forgot Password?</p>
           </div>
           <div className='w-64'>
-              <button className='w-full'>Create Account</button>
+              <button className={`w-full ${Error || emailError || passwordError || nameError ? 'bg-gray-200 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`} onClick={handleSignUp}>SignUp</button>
+          </div>
+          <div className='w-64 flex justify-center'>
+            {Error ? <p className='text-red-500 text-sm font-medium'>{Error}</p> : <p>{Error}</p>}
           </div>
         </div>
       </div>
