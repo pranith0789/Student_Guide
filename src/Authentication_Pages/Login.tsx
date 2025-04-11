@@ -1,33 +1,25 @@
-import TextField from '@mui/material/TextField';
 import axios from 'axios'
 import { ChangeEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 const Login = () => {
-  const[email,setEmail] = useState<string>("")
+  const[Email,setEmail] = useState<string>("")
   const[password,setPassword] = useState<string>("")
   const[emailError,setEmailError] = useState<string>("")
   const[passwordError,setPasswordError] = useState<string>("")
   const[error,setError] = useState<string>("")
-  
+  const navigate = useNavigate()
   const handlemail = (event: ChangeEvent<HTMLInputElement>) => {
-    setEmail(event.target.value)
-    if(email.length>0 && !validEmail(email)){
-      setEmailError("Invalid Email")
-    }
-    else{
-      setEmailError("")
-    }
-  }
-
-  const handlepassword = (event: ChangeEvent<HTMLInputElement>) =>{
-    setPassword(event.target.value)
-    if(password.length>0 && !validpassword(password)){
-      setPasswordError("Invalid password")
-    }
-    else{
-      setPasswordError("")
-    }
-  }
-
+    const value = event.target.value;
+    setEmail(value);
+    setEmailError(value.length > 0 && !validEmail(value) ? "Invalid Email" : "");
+  };
+  
+  const handlepassword = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setPassword(value);
+    setPasswordError(value.length > 0 && !validpassword(value) ? "Invalid password" : "");
+  };
+  
   const validEmail = (email:string): boolean =>{
     const emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -38,14 +30,17 @@ const Login = () => {
     return passwordRegex.test(password);
   }
 
+  const handlenaviagte = () => {
+    navigate("/SignUp")
+  }
 
   const handlelogin = async (event: React.FormEvent) => {
     event.preventDefault()
-    if(!email.trim() || !password.trim()){
+    if(!Email.trim() || !password.trim()){
       setError("Enter valid credentials")
     }
     try{
-      const responce = await axios.post('http://localhost:3000/login',{email,password})
+      const responce = await axios.post('http://localhost:3000/login',{Email,password})
       console.log("Login Successfull",responce.data)
       
     }catch(Error){
@@ -61,7 +56,7 @@ const Login = () => {
               <h1 className="font-bold text-gray-700">Login</h1>
               <div className="flex space-x-2">
                 <p className="underline text-black text-sm">Doesn't have an account yet?</p>
-                <p className="underline text-blue-600 cursor-pointer text-sm">Signup</p>
+                <p className="underline text-blue-600 cursor-pointer text-sm" onClick={handlenaviagte}>Signup</p>
               </div>
               <div className="w-64">
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -70,7 +65,7 @@ const Login = () => {
                 <input
                   id="email"
                   type="email"
-                  value={email}
+                  value={Email}
                   onChange={handlemail}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${emailError ? 'border-red-600' : 'border-gray-300'}`}                 
                   placeholder="Enter your email"
@@ -93,7 +88,17 @@ const Login = () => {
                 />
               </div>
               <div className='w-64'>
-                <button className='w-full mt-5' onClick={handlelogin}>Login</button>
+                <button
+                  className={`w-full mt-5 py-2 rounded-md font-semibold text-white ${
+                    error || emailError || passwordError || !Email || !password
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                  disabled={!!emailError || !!passwordError || !Email || !password}
+                  onClick={handlelogin}
+                >
+                  Login
+                </button>
               </div>
             </div>
           </div>

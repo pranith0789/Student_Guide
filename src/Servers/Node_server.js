@@ -40,7 +40,7 @@ app.post("/login",async(req,res) => {
             console.log("Incorrect Password")
             return res.status(401).json({message:"Incorrect Password"})
         }
-        console.log("user logged in:",foundUser.email);
+        console.log("user logged in:",foundUser?.Email);
         return res.status(200).json({message:"User logged in successfully"})
     }catch(err){
         console.log("Error logging in:",err)
