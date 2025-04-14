@@ -78,13 +78,13 @@ app.post("/search",async(req,res) => {
         return res.status(400).json({message:'Input is required'})
     }
     try{
-        const fastapiresponse = await axios.post('http://localhost:8000/rag',{prompt:input},{timeout : 10000})
+        const fastapiresponse = await axios.post('http://localhost:8000/rag',{query:input},{timeout : 0})
         const responsedata = fastapiresponse.data;
         console.log('FastAPI response',responsedata);
+        return res.status(200).json(responsedata);
     }catch(err){
         console.log('Error contacting server',err)
         return res.status(500).json({message:'Error processing search request'})
-
     }
 })
 

@@ -5,12 +5,12 @@ import json
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 from langchain.chains import RetrievalQA
-from langchain.vectorstores.faiss import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
-from langchain.docstore import InMemoryDocstore
+from langchain_community.docstore.in_memory import InMemoryDocstore
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -26,7 +26,7 @@ app.add_middleware(
 
 # Define request model
 class QueryRequest(BaseModel):
-    query: str
+    prompt: str
 
 # Define response model
 class QueryResponse(BaseModel):
@@ -65,7 +65,7 @@ def initialize_components():
     )
 
     # Load Ollama model
-    llm = Ollama(model="mistral")
+    llm = OllamaLLM(model="mistral")
 
     # Retrieval-based QA chain
     qa_chain = RetrievalQA.from_chain_type(
@@ -79,18 +79,21 @@ def initialize_components():
 # Initialize components at startup
 qa_chain = initialize_components()
 
-@app.post("/query", response_model=QueryResponse)
+@app.post("/rag", response_model=QueryResponse)
 async def process_query(request: QueryRequest):
+    print("Received request:", request)
+    print("Request prompt:", request.prompt)
     try:
-        result = qa_chain({"query": request.query})
-        
+        result = qa_chain({"query": request.prompt})
         return QueryResponse(
             answer=result["result"],
             sources=[doc.metadata.get("source", "Unknown") for doc in result["source_documents"]]
         )
     except Exception as e:
+        print("Error processing query:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
