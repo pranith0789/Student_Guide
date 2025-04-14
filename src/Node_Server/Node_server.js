@@ -69,4 +69,23 @@ app.post("/Register",async(req,res) => {
     }
 })
 
+
+app.post("/search",async(req,res) => {
+    console.log("Received search request",req.body)
+    const{input}=req.body
+    if(!input || !input.trim()){
+        console.log("Invalid input received")
+        return res.status(400).json({message:'Input is required'})
+    }
+    try{
+        const fastapiresponse = await axios.post('http://localhost:8000/rag',{prompt:input},{timeout : 10000})
+        const responsedata = fastapiresponse.data;
+        console.log('FastAPI response',responsedata);
+    }catch(err){
+        console.log('Error contacting server',err)
+        return res.status(500).json({message:'Error processing search request'})
+
+    }
+})
+
 app.listen(3000, () => console.log("server is running on port 3000"));

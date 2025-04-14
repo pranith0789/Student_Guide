@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+sentence-transformers
+faiss-cpu
+numpy
+langchain
+langchain-community
+huggingface-hub
+torch
+transformers      
