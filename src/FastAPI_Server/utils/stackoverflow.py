@@ -1,45 +1,64 @@
-import os
-import aiohttp
-from typing import Tuple, List
-from dotenv import load_dotenv
+import httpx
+from typing import List, Tuple
 
-# Load environment variables
-load_dotenv("credententials.env")
-STACKOVERFLOW_KEY = os.getenv("STACKOVERFLOW_KEY")  # Optional
+STACK_API_KEY = "rl_hzCWsuykMD5YuX4wfbw5YagZ5"
 
-async def search_stackoverflow(query: str) -> Tuple[str, List[str]]:
-    """Search Stack Overflow for answers."""
+BASE_SEARCH_URL = "https://api.stackexchange.com/2.3/search/advanced"
+BASE_ANSWER_URL = "https://api.stackexchange.com/2.3/questions/{question_id}/answers"
+
+async def search_stackoverflow(prompt: str) -> Tuple[str, List[str]]:
     try:
-        async with aiohttp.ClientSession() as session:
-            url = "https://api.stackexchange.com/2.3/search/advanced"
-            params = {
-                "q": query,
-                "site": "stackoverflow",
-                "sort": "relevance",
-                "order": "desc",
-                "filter": "withbody",
-                "pagesize": 3,
-            }
-            if STACKOVERFLOW_KEY:
-                params["key"] = STACKOVERFLOW_KEY
-            async with session.get(url, params=params) as response:
-                response.raise_for_status()
-                data = await response.json()
+        params = {
+            "order": "desc",
+            "sort": "relevance",
+            "q": prompt,
+            "site": "stackoverflow",
+            "key": STACK_API_KEY
+        }
 
-                answers = []
-                sources = []
-                
-                for item in data.get("items", []):
-                    if item.get("is_answered") and item.get("accepted_answer_id"):
-                        title = item.get("title", "")
-                        body = item.get("body", "")
-                        link = item.get("link", "")
-                        
-                        answers.append(body)
-                        sources.append(link)
-                
-                answer_text = "\n\n".join([f"Stack Overflow Result {i+1}:\n{ans}" for i, ans in enumerate(answers)])
-                return answer_text or "No relevant Stack Overflow answers found.", sources
+        async with httpx.AsyncClient(timeout=10) as client:
+            print(f"🔍 Searching Stack Overflow for: {prompt}")
+            search_response = await client.get(BASE_SEARCH_URL, params=params)
+
+            if search_response.status_code != 200:
+                error_msg = f"Search API failed with status {search_response.status_code}: {search_response.text}"
+                print(error_msg)
+                return error_msg, []
+
+            search_data = search_response.json()
+            if not search_data.get("items"):
+                print("❌ No Stack Overflow questions found.")
+                return "No relevant Stack Overflow results found.", []
+
+            top_question = search_data["items"][0]
+            question_id = top_question["question_id"]
+            question_url = top_question["link"]
+
+            # Fetch top answer
+            answer_params = {
+                "order": "desc",
+                "sort": "votes",
+                "site": "stackoverflow",
+                "key": STACK_API_KEY,
+                "filter": "!)rTkraWjJY0cV9W_2DwE"
+            }
+
+            print(f"💬 Fetching answers for question ID: {question_id}")
+            answer_response = await client.get(BASE_ANSWER_URL.format(question_id=question_id), params=answer_params)
+
+            if answer_response.status_code != 200:
+                error_msg = f"Answer API failed with status {answer_response.status_code}: {answer_response.text}"
+                print(error_msg)
+                return error_msg, [question_url]
+
+            answers_data = answer_response.json().get("items", [])
+            if not answers_data:
+                print("❌ No answers found for the top question.")
+                return "No answers found for the top Stack Overflow question.", [question_url]
+
+            top_answer_text = answers_data[0].get("body_markdown", "").strip()
+            return top_answer_text, [question_url]
+
     except Exception as e:
-        print(f"Stack Overflow API error: {str(e)}")
-        return "Failed to fetch Stack Overflow answers.", [] 
+        print("🔥 Exception:", str(e))
+        return f"Stack Overflow fetch error: {str(e)}", []
