@@ -57,7 +57,7 @@ def initialize_components():
 app = FastAPI()
 
 retriever, document_list, embedding_function, faiss_index, vectorstore = initialize_components()
-ollama_llm = Ollama(model="llama3.2")
+ollama_llm = Ollama(model="deepseek-r1:1.5b")
 
 @app.post("/query", response_model=QueryResponse)
 async def process_query(request: QueryRequest):
@@ -92,37 +92,40 @@ async def process_query(request: QueryRequest):
             )
 
         # Fallback to Stack Overflow
-        print("Low confidence in local results. Using Stack Overflow...")
-        stack_answer, stack_sources = await search_stackoverflow(request.prompt)
-        print("\n[StackOverflow Original Answer]:\n", stack_answer)
+        else:
+            print("Low confidence in local results. Using Stack Overflow...")
+            stack_answer, stack_sources = await search_stackoverflow(request.prompt)
+            print("\n[StackOverflow Original Answer]:\n", stack_answer)
 
-        # Refine with Ollama
-        refined_answer = ollama_llm.invoke(f"Improve this answer: {stack_answer}")
-        print("\n[Refined Answer]:\n", refined_answer)
+            # Refine with Ollama
+            refined_answer = ollama_llm.invoke(f"Improve this answer: {stack_answer}")
+            print("\n[Refined Answer]:\n", refined_answer)
 
-        # Add to vector DB and persist to disk
-        refined_vector = np.array([embedding_function.embed_query(refined_answer)], dtype=np.float32)
-        faiss_index.add(refined_vector)
-        doc_id = str(len(vectorstore.docstore._dict))
-        vectorstore.docstore._dict[doc_id] = Document(
-            page_content=refined_answer,
-            metadata={"source": "StackOverflow"}
-        )
-        vectorstore.index_to_docstore_id[len(vectorstore.index_to_docstore_id)] = doc_id
-        faiss.write_index(faiss_index, "knowledge_base_python.index")
+            # Add to vector DB and persist to disk
+            refined_vector = np.array([embedding_function.embed_query(refined_answer)], dtype=np.float32)
+            faiss_index.add(refined_vector)
+            doc_id = str(len(vectorstore.docstore._dict))
+            vectorstore.docstore._dict[doc_id] = Document(
+                page_content=refined_answer,
+                metadata={"source": "StackOverflow"}
+            )
+            vectorstore.index_to_docstore_id[len(vectorstore.index_to_docstore_id)] = doc_id
+            faiss.write_index(faiss_index, "knowledge_base_python.index")
 
-        # YouTube fallback too
-        youtube_answer, youtube_sources = await search_youtube(request.prompt)
+            # YouTube fallback too
+            youtube_answer, youtube_sources = await search_youtube(request.prompt)
 
-        combined_answer = (
-            f"Local confidence too low.\n\n"
-            f"Stack Overflow (original):\n{stack_answer}\n\n"
-            f"Stack Overflow (refined):\n{refined_answer}\n\n"
-            f"YouTube Videos:\n{youtube_answer}"
-        )
-        combined_sources = list(set(stack_sources + youtube_sources))
+            combined_answer = (
+                f"Local confidence too low.\n\n"
+                f"Stack Overflow (original):\n{stack_answer}\n\n"
+                f"Stack Overflow (refined):\n{refined_answer}\n\n"
+                f"YouTube Videos:\n{youtube_answer}"
+            )
+            combined_sources = list(set(stack_sources + youtube_sources))
 
-        return QueryResponse(answer=combined_answer, sources=combined_sources)
+            response = QueryResponse(answer=combined_answer, sources=combined_sources)
+            print("\n[Final Response]:\n", response.dict())
+            return response
 
     except Exception as e:
         print("Error processing query:", str(e))
