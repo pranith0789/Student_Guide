@@ -42,7 +42,8 @@ const Login = () => {
     try{
       const responce = await axios.post('http://localhost:3000/login',{Email,password})
       console.log("Login Successfull",responce.data)
-      
+      localStorage.setItem('userEmail',Email)
+      navigate("/Main")
     }catch(Error){
         console.log("Login failed",Error)
     }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Send } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -12,6 +12,12 @@ const Main: React.FC = () => {
   const [info, setInfo] = useState<ResponseInfo>({ answer: '', sources: [] });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [email,setEmail] = useState<string | null>(null);
+
+  useEffect(()=>{
+    const storedEmail = localStorage.getItem('userEmail');
+    setEmail(storedEmail)
+  },[]);
 
   const handleInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInput(event.target.value);
@@ -27,7 +33,7 @@ const Main: React.FC = () => {
     try {
       const response = await axios.post<{ answer: string; sources: string[] }>(
         'http://localhost:3000/search',
-        { input }
+        { input,email }
       );
       console.log('Response:', response.data);
       setInfo({

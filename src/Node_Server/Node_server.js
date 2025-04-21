@@ -72,17 +72,24 @@ app.post("/Register",async(req,res) => {
 
 app.post("/search", async (req, res) => {
     console.log("Received search request", req.body);
-    const { input } = req.body;
+    const { input,email } = req.body;
     if (!input || !input.trim()) {
         console.log("Invalid input received");
         return res.status(400).json({ message: "Input is required" });
     }
     try {
+        const user = await User.findOne({Email:email});
+        if(!user){
+            return res.status(500).json({message:"user not found"})
+        }
+
         const fastapiResponse = await axios.post(
             'http://localhost:8000/query',
-            { prompt: input },
+            { 
+                prompt: input,
+                user_id:user._id.toString()
+            },
             { timeout: 0 },
-            {userid: User._id}
         );
         const responseData = fastapiResponse.data;
         console.log('FastAPI response', responseData);
