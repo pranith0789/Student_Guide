@@ -12,6 +12,7 @@ from langchain_community.llms import Ollama
 
 class QueryRequest(BaseModel):
     prompt:str
+    user_id: str
 
 class QueryResponse(BaseModel):
     answer:str
@@ -50,6 +51,9 @@ def intialize_components():
 
 retriever, document_list, embedding_function, faiss_index, vectorstore= intialize_components()
 ollama_llm = Ollama(model='deepseek-r1:1.5b')
+
+def store_query(query: str, user_id: str, timestamp: str):
+
 
 app=FastAPI()
 

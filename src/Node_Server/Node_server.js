@@ -81,7 +81,8 @@ app.post("/search", async (req, res) => {
         const fastapiResponse = await axios.post(
             'http://localhost:8000/query',
             { prompt: input },
-            { timeout: 0 }
+            { timeout: 0 },
+            {userid: User._id}
         );
         const responseData = fastapiResponse.data;
         console.log('FastAPI response', responseData);
