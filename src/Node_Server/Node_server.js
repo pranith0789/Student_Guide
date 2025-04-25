@@ -80,9 +80,11 @@ app.post("/search", async (req, res) => {
     try {
         const user = await User.findOne({Email:email});
         if(!user){
+            console.log("User not found for email:", email);
             return res.status(500).json({message:"user not found"})
         }
 
+        console.log("Forwarding request to FastAPI with user_id:", user._id.toString());
         const fastapiResponse = await axios.post(
             'http://localhost:8000/query',
             { 
@@ -92,11 +94,23 @@ app.post("/search", async (req, res) => {
             { timeout: 0 },
         );
         const responseData = fastapiResponse.data;
-        console.log('FastAPI response', responseData);
+        console.log('FastAPI response received:', responseData);
+        
+        // Validate response structure
+        if (!responseData.answer) {
+            console.log('Invalid response structure from FastAPI:', responseData);
+            return res.status(500).json({ message: 'Invalid response from AI service' });
+        }
+        
+        console.log('Sending response to frontend:', responseData);
         return res.status(200).json(responseData);
     } catch (err) {
-        console.error('Error contacting FastAPI server:', err.message, err.response?.data);
-        return res.status(500).json({ message: 'Error processing search request' });
+        console.error('Error in search endpoint:', err.message);
+        console.error('Error details:', err.response?.data || err);
+        return res.status(500).json({ 
+            message: 'Error processing search request',
+            details: err.message 
+        });
     }
 });
 
