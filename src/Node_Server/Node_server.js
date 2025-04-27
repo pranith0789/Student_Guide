@@ -89,7 +89,7 @@ app.post("/search", async (req, res) => {
             'http://localhost:8000/query',
             { 
                 prompt: input,
-                user_id:user._id.toString()
+                // user_id:user._id.toString()
             },
             { timeout: 0 },
         );
