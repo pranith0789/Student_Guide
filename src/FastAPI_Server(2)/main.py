@@ -2,26 +2,25 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import faiss
-import time
 from pydantic import BaseModel
 from typing import List
+import numpy as np
+import datetime
+import httpx
+import wikipedia
+import re
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.llms import Ollama
-import numpy as np
-import datetime
-import requests
-import wikipedia
-import httpx
 
 # Constants
 USER_MEMORY_INDEX = "Query_DB/user_memory.index"
 USER_METADATA_FILE = "Query_DB/user_metadata.json"
-
-Response_Memory_index = "Query_Response_DB/Response_memory.index"
-Response_Metadata_file = "Query_Response_DB/Response_metadata.json"
+RESPONSE_MEMORY_INDEX = "Query_Response_DB/Response_memory.index"
+RESPONSE_METADATA_FILE = "Query_Response_DB/Response_metadata.json"
+SIMILARITY_THRESHOLD = 0.05  # Stricter threshold for exact matches
 
 class QueryRequest(BaseModel):
     prompt: str
@@ -32,16 +31,18 @@ class QueryResponse(BaseModel):
     sources: List[str]
 
 # Initialize components
-def intialize_components():
+def initialize_components():
     try:
         faiss_index = faiss.read_index("FAISS_DB/knowledge_base_python.index")
         with open("FAISS_DB/metadata.json", "r", encoding="utf-8") as f:
             metadata = json.load(f)
 
-        documents = [Document(
-            page_content=f"Topic:{item['topic']}\nExplanation:{item['explanation']}\nExample:{item['example']['code']}",
-            metadata={"source": item.get("source", "")}
-        ) for item in metadata]
+        documents = [
+            Document(
+                page_content=f"Topic:{item['topic']}\nExplanation:{item['explanation']}\nExample:{item['example']['code']}",
+                metadata={"source": item.get("source", "")}
+            ) for item in metadata
+        ]
 
         embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         index_to_docstore_id = {i: str(i) for i in range(len(documents))}
@@ -59,9 +60,10 @@ def intialize_components():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to initialize components: {str(e)}")
 
-retriever, document_list, embedding_function, faiss_index, vectorstore = intialize_components()
+retriever, document_list, embedding_function, faiss_index, vectorstore = initialize_components()
 ollama_llm = Ollama(model='deepseek-r1:1.5b')
 small_llm = Ollama(model='gemma3:1b')
+
 # Initialize user memory index
 user_memory_index = faiss.IndexFlatL2(384)
 user_query_metadata = []
@@ -85,24 +87,21 @@ def store_user_query(query: str, user_id: str):
 response_memory_index = faiss.IndexFlatL2(384)
 query_response_metadata = []
 
-#Stores query with response for future use.
-def store_query_response(query:str,Response:str):
+# Store query with response
+def store_query_response(query: str, response: str):
     try:
         vector = embedding_function.embed_query(query)
-        response_vector = embedding_function.embed_query(Response)
         response_memory_index.add(np.array([vector], dtype=np.float32))
         query_response_metadata.append({
-            "query":vector.tolist(),
-            "Response":response_vector.tolist(),
-            "timestamp":datetime.datetime.utcnow().isoformat()
+            "query": query,
+            "response": response,
+            "timestamp": datetime.datetime.utcnow().isoformat()
         })
-        faiss.write_index(response_memory_index,Response_Memory_index)
-        with open(Response_Metadata_file, "w", encoding="Utf-8") as f:
-            json.dump(query_response_metadata,f,indent=2)
-        
+        faiss.write_index(response_memory_index, RESPONSE_MEMORY_INDEX)
+        with open(RESPONSE_METADATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(query_response_metadata, f, indent=2)
     except Exception as e:
-        print(f"Error stroing query Response:{e}")
-
+        print(f"Error storing query response: {e}")
 
 # Get similar user queries
 def get_similar_user_queries(prompt: str, k: int = 3):
@@ -118,43 +117,52 @@ def get_similar_user_queries(prompt: str, k: int = 3):
             results.append(user_query_metadata[i]["query"])
     return results
 
-#Get past responses if same query is asked twicel
+# Get past responses with stricter matching
 def get_stored_response(prompt: str):
     try:
-        if response_memory_index.ntotal==0:
-            return[]
+        if response_memory_index.ntotal == 0:
+            return None
         vector = embedding_function.embed_query(prompt)
         distances, indices = response_memory_index.search(np.array([vector], dtype=np.float32), k=1)
-        results=[]
+        if distances[0][0] > SIMILARITY_THRESHOLD:
+            print(f"No close match for prompt: '{prompt}', distance: {distances[0][0]}")
+            return None
         for i in indices[0]:
             if i < len(query_response_metadata):
-                results.append(query_response_metadata[i])
-        return results
+                stored_query = query_response_metadata[i]["query"]
+                # Exact text match for added precision
+                if stored_query.strip().lower() == prompt.strip().lower():
+                    print(f"Found exact cached response for prompt: '{prompt}', distance: {distances[0][0]}")
+                    return query_response_metadata[i]["response"]
+                print(f"Close but not exact match for prompt: '{prompt}', stored: '{stored_query}', distance: {distances[0][0]}")
+                return None
+        return None
     except Exception as e:
-        print(f"Error while retrieving response : {e}")
-        return[]
+        print(f"Error retrieving response: {e}")
+        return None
 
-def classify_sources(query:str,classifier_llm) -> dict:
+# Classify sources
+def classify_sources(query: str, classifier_llm) -> List[str]:
     prompt = f"""
-        you are a source classifier for an AI tutor.
-        Available sources:
-        - FAISS_DB: Contains structured tutorials and examples from curated content.
-        - StackOverflow: Useful for debugging or coding help.
-        - Wikipedia: Good for definitions and theory.
-        - YouTube: Great for visual explanations or walkthroughs.
+    You are a source classifier for an AI tutor.
+    Available sources:
+    - FAISS_DB: Contains structured tutorials and examples from curated content.
+    - StackOverflow: Useful for debugging or coding help.
+    - Wikipedia: Good for definitions and theory.
+    - YouTube: Great for visual explanations or walkthroughs.
 
-        classify the best source for this query. Return a list with sources.
-        Query:"{query}"
+    Classify the best sources for this query. Return a JSON list of sources.
+    Query: "{query}"
     """
-
     try:
-        response = ollama_llm.invoke(prompt)
-        return response
+        response = classifier_llm.invoke(prompt)
+        return json.loads(response) if response.strip().startswith('[') else ["FAISS_DB"]
     except Exception as e:
-        print(f"source classification error: {e}")
-        return {"Sources":["FaissDB"]}
+        print(f"Source classification error: {e}")
+        return ["FAISS_DB"]
 
-async def StackOverFlow_response(prompt: str, api_key: str):
+# StackOverflow response
+async def stackoverflow_response(prompt: str, api_key: str):
     url = "https://api.stackexchange.com/2.3/search/advanced"
     params = {
         "order": "desc",
@@ -163,34 +171,33 @@ async def StackOverFlow_response(prompt: str, api_key: str):
         "site": "stackoverflow",
         "key": api_key
     }
-
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             data = response.json()
-
         if data["items"]:
             top_question = data["items"][0]
-            return f"**Top StackOverflow Result:**\n{top_question['title']}\n{top_question['link']}"
-        return "No relevant results found on Stack Overflow."
+            return f"StackOverflow: {top_question['title']} ({top_question['link']})"
+        return "No relevant results found on StackOverflow."
     except Exception as e:
-        return f"Error fetching info from StackOverflow: {e}"
+        return f"Error fetching from StackOverflow: {e}"
 
-
-def Wikipedia_Response(prompt:str) -> str:
+# Wikipedia response
+def wikipedia_response(prompt: str) -> str:
     try:
         summary = wikipedia.summary(prompt, sentences=3)
         page = wikipedia.page(prompt)
-        return f"**Wikipedia Summary:**\n{summary}\n\n[Read More]({page.url})"
+        return f"Wikipedia: {summary} (Read more: {page.url})"
     except wikipedia.exceptions.DisambiguationError as e:
-        return f"Your query matched multiple topics: {', '.join(e.options[:5])}"
+        return f"Wikipedia: Multiple topics found: {', '.join(e.options[:5])}"
     except wikipedia.exceptions.PageError:
-        return "Wikipedia page not found."
+        return "Wikipedia: Page not found."
     except Exception as e:
         return f"Error fetching from Wikipedia: {str(e)}"
 
-async def YouTube_Response(prompt: str, api_key: str):
+# YouTube response
+async def youtube_response(prompt: str, api_key: str):
     url = "https://www.googleapis.com/youtube/v3/search"
     params = {
         "part": "snippet",
@@ -199,82 +206,109 @@ async def YouTube_Response(prompt: str, api_key: str):
         "maxResults": 1,
         "key": api_key
     }
-
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             data = response.json()
-
         if "items" in data and data["items"]:
             video = data["items"][0]
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
-            return f"**Top YouTube Result:**\n{video['snippet']['title']}\n{video_url}"
+            return f"YouTube: {video['snippet']['title']} ({video_url})"
         return "No relevant videos found on YouTube."
     except Exception as e:
         return f"Error fetching from YouTube: {e}"
 
+# Clean response
+def clean_response(text: str) -> str:
+    return re.sub(r'<think>.*?</think>\n*', '', text, flags=re.DOTALL)
+
 # FastAPI app
 app = FastAPI()
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.post("/query", response_model=QueryResponse)
 async def process_query(request: QueryRequest):
     try:
-        existing_response = get_stored_response(request.prompt)
-        if existing_response:
-            return QueryResponse(answer=str(existing_response[0]['Response']), sources=[])
+        # Check for stored response
+        # existing_response = get_stored_response(request.prompt)
+        # if existing_response:
+        #     return QueryResponse(answer=clean_response(existing_response), sources=["StoredResponse"])
 
+        # Classify sources
         sources = classify_sources(request.prompt, classifier_llm=ollama_llm)
+        print(f"Classified sources for prompt '{request.prompt}': {sources}")
 
         final_response = ""
         used_sources = []
         local_sources = []
 
-        if "StackOverFlow" in sources and "StackOverFlow" not in used_sources:
-            stack_response = await StackOverFlow_response(request.prompt, api_key="your_api_key")
-            refined_response = small_llm.invoke(f"Improve and explain the following:\n{stack_response}")
-            final_response += f"\n\n{refined_response}"
-            used_sources.append("StackOverFlow")
+        if "StackOverflow" in sources and "StackOverflow" not in used_sources:
+            stack_response = await stackoverflow_response(request.prompt, api_key="your_api_key")
+            refined_response = small_llm.invoke(f"Summarize and explain in plain text:\n{stack_response}")
+            final_response += f"\n{refined_response}"
+            used_sources.append("StackOverflow")
 
         if "Wikipedia" in sources and "Wikipedia" not in used_sources:
-            wikipedia_response = Wikipedia_Response(request.prompt)
-            refined_response = small_llm.invoke(f"Improve and explain the following:\n{wikipedia_response}")
-            final_response += f"\n\n{refined_response}"
+            wikipedia_response = wikipedia_response(request.prompt)
+            refined_response = small_llm.invoke(f"Summarize and explain in plain text:\n{wikipedia_response}")
+            final_response += f"\n{refined_response}"
             used_sources.append("Wikipedia")
 
         if "FAISS_DB" in sources and "FAISS_DB" not in used_sources:
             local_docs = retriever.get_relevant_documents(request.prompt)
-            local_answer = "\n\n".join([doc.page_content for doc in local_docs]).strip()
-            refined_response = small_llm.invoke(f"Improve and explain the following:\n{local_answer}")
-            final_response += f"\n\n{refined_response}"
+            local_answer = "\n".join([doc.page_content for doc in local_docs]).strip()
+            refined_response = small_llm.invoke(f"Summarize and explain in plain text:\n{local_answer}")
+            final_response += f"\n{refined_response}"
             local_sources = [doc.metadata.get("source", "Unknown") for doc in local_docs if doc.metadata.get("source", "Unknown") != "Unknown"]
             used_sources.append("FAISS_DB")
 
-        if "YouTube" in sources and "YouTube" not in used_sources:
-            youtube_response = await YouTube_Response(request.prompt, api_key="your_api_key")
-            final_response += f"\n\n{youtube_response}"
-            used_sources.append("YouTube")
+        # Uncomment to enable YouTube
+        # if "YouTube" in sources and "YouTube" not in used_sources:
+        #     youtube_response = await youtube_response(request.prompt, api_key="your_api_key")
+        #     final_response += f"\n{youtube_response}"
+        #     used_sources.append("YouTube")
 
+        # Get similar queries
         similar_queries = get_similar_user_queries(request.prompt, k=3)
-        context = f"use the following context to answer the question:\n\n{final_response}\n\nPast similar queries:\n"
+        context = f"Combine responses into a single paragraph and answer the question:\n{final_response}\nPast similar queries:\n"
         context += "\n".join(similar_queries) if similar_queries else "No past queries found."
 
-        prompt = f"{context}\n\nQuestion: {request.prompt}"
+        prompt = f"{context}\nQuestion: {request.prompt}"
         final_answer = ollama_llm.invoke(prompt)
 
-        store_user_query(request.prompt, request.user_id)
-        store_query_response(request.prompt, final_answer)
+        # Clean the final answer
+        cleaned_answer = clean_response(final_answer)
 
-        return QueryResponse(answer=final_answer, sources=used_sources + local_sources)
+        # Store query and response
+        store_user_query(request.prompt, request.user_id)
+        store_query_response(request.prompt, cleaned_answer)
+
+        return QueryResponse(answer=cleaned_answer, sources=used_sources + local_sources)
 
     except Exception as e:
+        print(f"Error processing query: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Endpoint to clear response index (for debugging)
+@app.post("/clear_response_index")
+async def clear_response_index():
+    try:
+        global response_memory_index, query_response_metadata
+        response_memory_index = faiss.IndexFlatL2(384)
+        query_response_metadata = []
+        faiss.write_index(response_memory_index, RESPONSE_MEMORY_INDEX)
+        with open(RESPONSE_METADATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(query_response_metadata, f, indent=2)
+        print("Response index cleared")
+        return {"message": "Response index cleared"}
+    except Exception as e:
+        print(f"Error clearing response index: {e}")
         raise HTTPException(status_code=500, detail=str(e))

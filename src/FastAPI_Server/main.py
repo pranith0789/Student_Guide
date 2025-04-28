@@ -35,25 +35,8 @@ else:
 # Load the database (either existing or newly created)
 query_db = FAISS.load_local(query_db_path, embedding_model, allow_dangerous_deserialization=True)
 
-query_response_db_path = "FAISS_DB/query_response_index"
-
-# Create an empty query_response_db if not exists
-if os.path.exists(query_response_db_path):
-    query_response_db = FAISS.load_local(query_response_db_path, embedding_model, allow_dangerous_deserialization=True)
-else:
-    os.makedirs("FAISS_DB", exist_ok=True)
-    empty_doc = Document(page_content='init', metadata={'response': 'init'})
-    query_response_db = FAISS.from_documents([empty_doc], embedding_model)
-    query_response_db.save_local(query_response_db_path)
-    print("✅ created new empty query_response_db")
-
-# Load it finally
-query_response_db = FAISS.load_local(query_response_db_path, embedding_model, allow_dangerous_deserialization=True)
-
-
 # FastAPI Request and Response Models
 class QueryRequest(BaseModel):
-    # Both fields are now optional, and one of them must be provided
     prompt:str
 
 class QueryResponse(BaseModel):
@@ -138,10 +121,6 @@ Question:
         'answer': refined_answer.strip()
     }
 
-
-
-
-
 # Build the graph
 graph = StateGraph(dict)  # Use dict instead of SearchState
 graph.add_node("retrieve_documents", retrieve_documents)
@@ -159,23 +138,7 @@ async def query_handler(request: QueryRequest):
     try:
         print(f"Received query: {request.prompt}")
 
-        # 🔥 Check if similar query exists with score
-        similar_query_docs_with_scores = query_response_db.similarity_search_with_score(request.prompt, k=1)
-        
-        if similar_query_docs_with_scores:
-            best_match, score = similar_query_docs_with_scores[0]
-            print(f"Found similar query: {best_match.page_content} with score {score}")
-
-            # Only accept if score is high enough (lower score means closer match)
-            if best_match and best_match.metadata.get('response') and score < 0.3:
-                # 0.3 is a loose threshold. You can tighten to 0.2 if needed.
-                print("✅ Returning cached answer from query_response_db")
-                return QueryResponse(
-                    answer=best_match.metadata['response'],
-                    sources=[]
-                )
-
-        # 🛠 No similar query found, proceed to run the graph
+        # Run the graph
         initial_state = {
             'query': request.prompt,
             'retrieved_docs': [],
@@ -183,31 +146,45 @@ async def query_handler(request: QueryRequest):
             'answer': ''
         }
         print(f"Initial state: {initial_state}")
-        final_state = app_graph.invoke(initial_state)
-        print(f"Final state: {final_state}")
         
+        # Ensure the graph execution completes
+        final_state = app_graph.invoke(initial_state)
         if final_state is None:
             raise ValueError("Graph execution returned None")
-
-        # 🔥 Save the new query and answer to query_response_db
+            
+        print(f"Final state: {final_state}")
+        
+        # Extract the answer and sources from the final state
+        answer = final_state.get('answer', '')
+        sources = final_state.get('sources', [])
+        
+        if not answer:
+            raise ValueError("No answer generated")
+            
+        # Store the query in query_db
         new_doc = Document(
             page_content=request.prompt,
-            metadata={'response': final_state.get('answer', 'No answer generated')}
+            metadata={'source': 'user_query'}
         )
-        query_response_db.add_documents([new_doc])
-        query_response_db.save_local(query_response_db_path)
-        print("✅ Saved new query and answer to query_response_db")
+        query_db.add_documents([new_doc])
+        query_db.save_local(query_db_path)
+        print("✅ Saved new query to query_db")
 
-        return QueryResponse(
-            answer=final_state.get('answer', 'No answer generated'),
-            sources=final_state.get('sources', [])
+        # Return the response
+        response = QueryResponse(
+            answer=answer,
+            sources=sources
         )
+        print(f"Returning response: {response}")
+        return response
 
     except Exception as e:
         print(f"Error in query handler: {str(e)}")
-        return QueryResponse(
+        error_response = QueryResponse(
             answer=f"Error processing query: {str(e)}",
             sources=[]
         )
+        print(f"Returning error response: {error_response}")
+        return error_response
 
 
