@@ -38,14 +38,22 @@ const Login = () => {
     event.preventDefault()
     if(!Email.trim() || !password.trim()){
       setError("Enter valid credentials")
+      return;
     }
     try{
       const responce = await axios.post('http://localhost:3000/login',{Email,password})
       console.log("Login Successfull",responce.data)
-      localStorage.setItem('userEmail',Email)
-      navigate("/Main")
+      if (responce.data && responce.data.email) {
+        console.log('Storing email in localStorage:', responce.data.email);
+        localStorage.setItem('userEmail', responce.data.email);
+        navigate("/Main")
+      } else {
+        console.error('Invalid response format from login:', responce.data);
+        setError("Login failed: Invalid response from server");
+      }
     }catch(Error){
-        console.log("Login failed",Error)
+      console.error("Login failed", Error);
+      setError("Login failed. Please check your credentials and try again.");
     }
   }
 

@@ -69,12 +69,12 @@ user_memory_index = faiss.IndexFlatL2(384)
 user_query_metadata = []
 
 # Store user query
-def store_user_query(query: str, user_id: str):
+def store_user_query(query: str):
     try:
         vector = embedding_function.embed_query(query)
         user_memory_index.add(np.array([vector], dtype=np.float32))
         user_query_metadata.append({
-            "user_id": user_id,
+            # "user_id": user_id,
             "query": query,
             "timestamp": datetime.datetime.utcnow().isoformat()
         })
@@ -251,7 +251,7 @@ async def process_query(request: QueryRequest):
         local_sources = []
 
         if "StackOverflow" in sources and "StackOverflow" not in used_sources:
-            stack_response = await stackoverflow_response(request.prompt, api_key="your_api_key")
+            stack_response = await stackoverflow_response(request.prompt, api_key="rl_hzCWsuykMD5YuX4wfbw5YagZ5")
             refined_response = small_llm.invoke(f"Summarize and explain in plain text:\n{stack_response}")
             final_response += f"\n{refined_response}"
             used_sources.append("StackOverflow")
@@ -288,7 +288,7 @@ async def process_query(request: QueryRequest):
         cleaned_answer = clean_response(final_answer)
 
         # Store query and response
-        store_user_query(request.prompt, request.user_id)
+        store_user_query(request.prompt)
         store_query_response(request.prompt, cleaned_answer)
 
         return QueryResponse(answer=cleaned_answer, sources=used_sources + local_sources)
@@ -298,17 +298,17 @@ async def process_query(request: QueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Endpoint to clear response index (for debugging)
-@app.post("/clear_response_index")
-async def clear_response_index():
-    try:
-        global response_memory_index, query_response_metadata
-        response_memory_index = faiss.IndexFlatL2(384)
-        query_response_metadata = []
-        faiss.write_index(response_memory_index, RESPONSE_MEMORY_INDEX)
-        with open(RESPONSE_METADATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(query_response_metadata, f, indent=2)
-        print("Response index cleared")
-        return {"message": "Response index cleared"}
-    except Exception as e:
-        print(f"Error clearing response index: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.post("/clear_response_index")
+# async def clear_response_index():
+#     try:
+#         global response_memory_index, query_response_metadata
+#         response_memory_index = faiss.IndexFlatL2(384)
+#         query_response_metadata = []
+#         faiss.write_index(response_memory_index, RESPONSE_MEMORY_INDEX)
+#         with open(RESPONSE_METADATA_FILE, "w", encoding="utf-8") as f:
+#             json.dump(query_response_metadata, f, indent=2)
+#         print("Response index cleared")
+#         return {"message": "Response index cleared"}
+#     except Exception as e:
+#         print(f"Error clearing response index: {e}")
+#         raise HTTPException(status_code=500, detail=str(e))
