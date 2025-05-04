@@ -106,6 +106,7 @@ app.post("/search", async (req, res) => {
     const formattedResponse = {
       answer: fastapiResponse.data.answer,
       sources: fastapiResponse.data.sources,
+      suggestion:  typeof fastapiResponse.data.suggestion === "string" ? fastapiResponse.data.suggestion : ""
     };
 
     console.log("Sending formatted response to frontend:", formattedResponse);

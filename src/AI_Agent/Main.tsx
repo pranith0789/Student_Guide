@@ -298,16 +298,19 @@ const Main = () => {
   const [input, setInput] = useState<string>("");
   const [response, setResponse] = useState<string>("");
   const [sources, setSources] = useState<string[]>([]);
+  const [suggestion,setSuggestion] = useState<string>("");
 
   // Load saved data from localStorage on first render
   useEffect(() => {
     const savedInput = localStorage.getItem("lastInput");
     const savedResponse = localStorage.getItem("lastResponse");
     const savedSources = localStorage.getItem("lastSources");
+    const savedSuggestion = localStorage.getItem("lastSuggestion")
 
     if (savedInput) setInput(savedInput);
     if (savedResponse) setResponse(savedResponse);
     if (savedSources) setSources(JSON.parse(savedSources));
+    if(savedSuggestion) setSuggestion(savedSuggestion)
   }, []);
 
   // Sync state to localStorage on change
@@ -327,6 +330,12 @@ const Main = () => {
     }
   }, [sources]);
 
+  useEffect(()=>{
+    if(suggestion){
+      localStorage.setItem("lastSuggestion",suggestion)
+    }
+  },[suggestion])
+
   // Handle input change
   const handleInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInput(event.target.value);
@@ -340,7 +349,7 @@ const Main = () => {
     setSources([]);  // Clear old sources in UI only
 
     try {
-      const { data } = await axios.post<{ answer: string; sources: string[] }>(
+      const { data } = await axios.post<{ answer: string; sources: string[]; suggestion:string}>(
         "http://localhost:3000/search",
         { input },
         {
@@ -351,6 +360,7 @@ const Main = () => {
 
       setResponse(data.answer);
       setSources(data.sources);
+      setSuggestion(data.suggestion)
     } catch (err) {
       console.error("Error sending data", err);
       setResponse("❌ Failed to get response from server.");
@@ -396,6 +406,8 @@ const Main = () => {
                 </ul>
               </>
             )}
+            <strong>Suggestion:</strong>
+            <p className="mb-2">{suggestion}</p>
           </div>
         )}
       </div>

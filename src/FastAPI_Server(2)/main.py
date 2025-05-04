@@ -29,6 +29,8 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: List[str]
+    suggestion : str
+    
 
 # Initialize components
 def initialize_components():
@@ -294,7 +296,8 @@ async def process_query(request: QueryRequest):
         You are an advanced AI_Tutor that helps user for future by recommending next steps through current user_query and previous_Query
         current_query:{request.prompt}
         previous_query:{similar_queries}
-        return the list of suggested topics seperated by comma.
+        Example return type: Java for loops, variables etc...
+        return the list of suggested topics seperated by comma without any explanation
         """
         
         Topics = ollama_llm.invoke(suggestion_prompt)
@@ -309,7 +312,7 @@ async def process_query(request: QueryRequest):
         else:
             online_resources = used_sources + local_sources +  youtube_videos
             
-        return QueryResponse(answer=cleaned_answer, sources = online_resources)
+        return QueryResponse(answer=cleaned_answer, sources = online_resources, suggestion = Topics)
 
     except Exception as e:
         print(f"Error processing query: {e}")
