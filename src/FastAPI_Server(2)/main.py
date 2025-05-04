@@ -24,7 +24,7 @@ SIMILARITY_THRESHOLD = 0.05  # Stricter threshold for exact matches
 
 class QueryRequest(BaseModel):
     prompt: str
-    user_id: str
+    # user_id: str
 
 class QueryResponse(BaseModel):
     answer: str
@@ -61,7 +61,7 @@ def initialize_components():
         raise HTTPException(status_code=500, detail=f"Failed to initialize components: {str(e)}")
 
 retriever, document_list, embedding_function, faiss_index, vectorstore = initialize_components()
-ollama_llm = Ollama(model='deepseek-r1:1.5b')
+ollama_llm = Ollama(model='llama3.2')
 small_llm = Ollama(model='gemma3:1b')
 
 # Initialize user memory index
@@ -144,19 +144,19 @@ def get_stored_response(prompt: str):
 # Classify sources
 def classify_sources(query: str, classifier_llm) -> List[str]:
     prompt = f"""
-    You are a source classifier for an AI tutor.
-    Available sources:
-    - FAISS_DB: Contains structured tutorials and examples from curated content.
-    - StackOverflow: Useful for debugging or coding help.
-    - Wikipedia: Good for definitions and theory.
-    - YouTube: Great for visual explanations or walkthroughs.
-
-    Classify the best sources for this query. Return a JSON list of sources.
-    Query: "{query}"
+        You are a source classifier. For the query:"{query}", return only a comma-seperated list of relevant sources from these options:
+        - FAISS DB - Contains basic definations and code exampled
+        - Wikipedia - Contains detailed explanation about the topic
+        - StackOverFlow - Used for debugging and trouble shotting the problems
+        - YouTube - Used for video explanation
+        
+        Return format example: Wikipedida , YouTube
+        Do not include any explanations or additional text. Return as list type seperated by commas.
     """
     try:
         response = classifier_llm.invoke(prompt)
-        return json.loads(response) if response.strip().startswith('[') else ["FAISS_DB"]
+        sources_list = [source.strip() for source in response.split(',')]
+        return sources_list
     except Exception as e:
         print(f"Source classification error: {e}")
         return ["FAISS_DB"]
@@ -249,20 +249,22 @@ async def process_query(request: QueryRequest):
         final_response = ""
         used_sources = []
         local_sources = []
-
-        if "StackOverflow" in sources and "StackOverflow" not in used_sources:
+        youtube_videos = []
+        online_resources = []
+        
+        if "StackOverFlow" in sources and "StackOverFlow" not in used_sources:
             stack_response = await stackoverflow_response(request.prompt, api_key="rl_hzCWsuykMD5YuX4wfbw5YagZ5")
             refined_response = small_llm.invoke(f"Summarize and explain in plain text:\n{stack_response}")
             final_response += f"\n{refined_response}"
             used_sources.append("StackOverflow")
 
         if "Wikipedia" in sources and "Wikipedia" not in used_sources:
-            wikipedia_response = wikipedia_response(request.prompt)
-            refined_response = small_llm.invoke(f"Summarize and explain in plain text:\n{wikipedia_response}")
+            wiki_response = wikipedia_response(request.prompt)
+            refined_response = small_llm.invoke(f"Summarize and explain in plain text:\n{wiki_response}")
             final_response += f"\n{refined_response}"
             used_sources.append("Wikipedia")
 
-        if "FAISS_DB" in sources and "FAISS_DB" not in used_sources:
+        if "FAISS DB" in sources and "FAISS DB" not in used_sources:
             local_docs = retriever.get_relevant_documents(request.prompt)
             local_answer = "\n".join([doc.page_content for doc in local_docs]).strip()
             refined_response = small_llm.invoke(f"Summarize and explain in plain text:\n{local_answer}")
@@ -271,10 +273,11 @@ async def process_query(request: QueryRequest):
             used_sources.append("FAISS_DB")
 
         # Uncomment to enable YouTube
-        # if "YouTube" in sources and "YouTube" not in used_sources:
-        #     youtube_response = await youtube_response(request.prompt, api_key="your_api_key")
-        #     final_response += f"\n{youtube_response}"
-        #     used_sources.append("YouTube")
+        if "YouTube" in sources and "YouTube" not in used_sources:
+            youtuberesponse = await youtube_response(request.prompt, api_key="AIzaSyA8DC-VlDt0BTfC9jEonSStDg3yVNEokaU")
+            refined_response = small_llm.invoke(f"Remove the text and give me only youtube video link{youtuberesponse}")
+            youtube_videos.append(refined_response)
+            used_sources.append("YouTube")
 
         # Get similar queries
         similar_queries = get_similar_user_queries(request.prompt, k=3)
@@ -286,29 +289,28 @@ async def process_query(request: QueryRequest):
 
         # Clean the final answer
         cleaned_answer = clean_response(final_answer)
+        
+        suggestion_prompt = f"""
+        You are an advanced AI_Tutor that helps user for future by recommending next steps through current user_query and previous_Query
+        current_query:{request.prompt}
+        previous_query:{similar_queries}
+        return the list of suggested topics seperated by comma.
+        """
+        
+        Topics = ollama_llm.invoke(suggestion_prompt)
+        print(Topics)
 
         # Store query and response
         store_user_query(request.prompt)
         store_query_response(request.prompt, cleaned_answer)
 
-        return QueryResponse(answer=cleaned_answer, sources=used_sources + local_sources)
+        if not local_sources:
+            online_resources = used_sources + youtube_videos
+        else:
+            online_resources = used_sources + local_sources +  youtube_videos
+            
+        return QueryResponse(answer=cleaned_answer, sources = online_resources)
 
     except Exception as e:
         print(f"Error processing query: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# Endpoint to clear response index (for debugging)
-# @app.post("/clear_response_index")
-# async def clear_response_index():
-#     try:
-#         global response_memory_index, query_response_metadata
-#         response_memory_index = faiss.IndexFlatL2(384)
-#         query_response_metadata = []
-#         faiss.write_index(response_memory_index, RESPONSE_MEMORY_INDEX)
-#         with open(RESPONSE_METADATA_FILE, "w", encoding="utf-8") as f:
-#             json.dump(query_response_metadata, f, indent=2)
-#         print("Response index cleared")
-#         return {"message": "Response index cleared"}
-#     except Exception as e:
-#         print(f"Error clearing response index: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))

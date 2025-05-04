@@ -1,17 +1,6 @@
 [
   {
-    "user_id": "67f8e0acd12b2a3044347749",
-    "query": "explain variables in java",
-    "timestamp": "2025-04-28T14:19:29.964043"
-  },
-  {
-    "user_id": "67f8e0acd12b2a3044347749",
-    "query": "explain variables in java",
-    "timestamp": "2025-04-28T14:21:43.244432"
-  },
-  {
-    "user_id": "67f8e0acd12b2a3044347749",
-    "query": "what is the difference between for loop and while loop in java",
-    "timestamp": "2025-04-28T14:23:18.921098"
+    "query": "Give me a hello world program in java",
+    "timestamp": "2025-05-04T11:26:16.329297"
   }
 ]
