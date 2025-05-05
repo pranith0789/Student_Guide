@@ -41,14 +41,15 @@ const Login = () => {
       return;
     }
     try{
-      const responce = await axios.post('http://localhost:3000/login',{Email,password})
-      console.log("Login Successfull",responce.data)
-      if (responce.data && responce.data.email) {
-        console.log('Storing email in localStorage:', responce.data.email);
-        localStorage.setItem('userEmail', responce.data.email);
+      const response = await axios.post('http://localhost:3000/login',{Email,password})
+      console.log("Login Successfull",response.data)
+      if (response.data && response.data.email && response.data.user_id) {
+        console.log('Storing email in localStorage:', response.data.email);
+        localStorage.setItem('userEmail', response.data.email);
+        localStorage.setItem('userID',response.data.user_id)
         navigate("/Main")
       } else {
-        console.error('Invalid response format from login:', responce.data);
+        console.error('Invalid response format from login:', response.data);
         setError("Login failed: Invalid response from server");
       }
     }catch(Error){

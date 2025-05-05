@@ -37,7 +37,10 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Incorrect Password" });
     }
     console.log("User logged in:", foundUser.Email);
-    return res.status(200).json({ message: "User logged in successfully", email: foundUser.Email });
+    if(isValidPassword){
+      return res.status(200).json({ message: "User logged in successfully", email: foundUser.Email, user_id: foundUser._id });
+
+    }
   } catch (err) {
     console.error("Error logging in:", err);
     return res.status(500).json({ message: "Error logging in user" });
@@ -66,8 +69,7 @@ app.post("/Register", async (req, res) => {
 
 app.post("/search", async (req, res) => {
   console.log("Received search request:", req.body);
-  const { input} = req.body;
-
+  const { input,user_id} = req.body;
   if (!input || !input.trim()) {
     console.log("Invalid input received");
     return res.status(400).json({
@@ -89,7 +91,7 @@ app.post("/search", async (req, res) => {
     // console.log("Forwarding request to FastAPI with user_id:", user._id.toString());
     const fastapiResponse = await axios.post("http://localhost:8000/query", {
       prompt: input,
-      // user_id: user._id.toString(),
+      user_id: user_id
     });
 
     console.log("FastAPI response received:", fastapiResponse.data);

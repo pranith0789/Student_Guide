@@ -24,7 +24,7 @@ SIMILARITY_THRESHOLD = 0.05  # Stricter threshold for exact matches
 
 class QueryRequest(BaseModel):
     prompt: str
-    # user_id: str
+    user_id: str
 
 class QueryResponse(BaseModel):
     answer: str
