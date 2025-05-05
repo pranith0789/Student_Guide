@@ -71,12 +71,12 @@ user_memory_index = faiss.IndexFlatL2(384)
 user_query_metadata = []
 
 # Store user query
-def store_user_query(query: str):
+def store_user_query(query: str,user_id:str):
     try:
         vector = embedding_function.embed_query(query)
         user_memory_index.add(np.array([vector], dtype=np.float32))
         user_query_metadata.append({
-            # "user_id": user_id,
+            "user_id": user_id,
             "query": query,
             "timestamp": datetime.datetime.utcnow().isoformat()
         })
@@ -106,7 +106,7 @@ def store_query_response(query: str, response: str):
         print(f"Error storing query response: {e}")
 
 # Get similar user queries
-def get_similar_user_queries(prompt: str, k: int = 3):
+def get_similar_user_queries(prompt: str, user_id:str,k: int = 3):
     if user_memory_index.ntotal == 0:
         return []
 
@@ -282,7 +282,7 @@ async def process_query(request: QueryRequest):
             used_sources.append("YouTube")
 
         # Get similar queries
-        similar_queries = get_similar_user_queries(request.prompt, k=3)
+        similar_queries = get_similar_user_queries(request.prompt,request.user_id, k=3)
         context = f"Combine responses into a single paragraph and answer the question:\n{final_response}\nPast similar queries:\n"
         context += "\n".join(similar_queries) if similar_queries else "No past queries found."
 

@@ -5,13 +5,17 @@ import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 import * as THREE from 'three';
 
+// Floating and rotating welcome text
 const FloatingText = () => {
   const textRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
+    const time = clock.getElapsedTime();
     if (textRef.current) {
-      textRef.current.position.y = Math.sin(clock.getElapsedTime()) * 0.2;
+      textRef.current.position.y = Math.sin(time) * 0.2;
       textRef.current.rotation.y += 0.005;
+      const scale = 1 + 0.05 * Math.sin(time * 2);
+      textRef.current.scale.set(scale, scale, scale);
     }
   });
 
@@ -22,9 +26,51 @@ const FloatingText = () => {
       color="hotpink"
       anchorX="center"
       anchorY="middle"
+      outlineWidth={0.03}
+      outlineColor="white"
+      outlineOpacity={0.8}
+      strokeColor="white"
+      strokeWidth={0.015}
     >
       Welcome
     </Text>
+  );
+};
+
+// Rotating cube component
+const RotatingCube = ({ position }: { position: [number, number, number] }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(() => {
+    if (meshRef.current) {
+      meshRef.current.rotation.x += 0.01;
+      meshRef.current.rotation.y += 0.01;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={position}>
+      <boxGeometry args={[0.5, 0.5, 0.5]} />
+      <meshStandardMaterial color="#00ffff" wireframe />
+    </mesh>
+  );
+};
+
+// Floating sphere component
+const FloatingSphere = ({ position }: { position: [number, number, number] }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    if (meshRef.current) {
+      meshRef.current.position.y = position[1] + Math.sin(clock.getElapsedTime() + position[0]) * 0.3;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={position}>
+      <sphereGeometry args={[0.3, 32, 32]} />
+      <meshStandardMaterial color="violet" transparent opacity={0.7} />
+    </mesh>
   );
 };
 
@@ -39,7 +85,15 @@ const WelcomePage = () => {
         <directionalLight position={[2, 3, 4]} intensity={1} />
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
         <OrbitControls enableZoom={false} />
+
+        {/* Centered animated text */}
         <FloatingText />
+
+        {/* Background animated 3D objects */}
+        <RotatingCube position={[-2, 1, -2]} />
+        <RotatingCube position={[2, -1, -3]} />
+        <FloatingSphere position={[1.5, 1.5, -2]} />
+        <FloatingSphere position={[-1.5, -1.2, -1.5]} />
       </Canvas>
 
       {/* UI Overlay */}
