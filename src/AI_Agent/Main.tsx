@@ -292,6 +292,7 @@
 
 import axios from "axios";
 import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import React from "react";
 
 const Main = () => {
@@ -299,7 +300,7 @@ const Main = () => {
   const [response, setResponse] = useState<string>("");
   const [sources, setSources] = useState<string[]>([]);
   const [suggestion,setSuggestion] = useState<string>("");
-
+  const {userId} = useParams()
   // Load saved data from localStorage on first render
   useEffect(() => {
     const savedInput = localStorage.getItem("lastInput");
@@ -351,7 +352,7 @@ const Main = () => {
     try {
       const { data } = await axios.post<{ answer: string; sources: string[]; suggestion:string}>(
         "http://localhost:3000/search",
-        { input },
+        { input,userId },
         {
           headers: { "Content-Type": "application/json" },
           timeout: 0,
