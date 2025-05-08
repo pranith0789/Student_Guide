@@ -91,92 +91,97 @@ const SignUp = () => {
       setError("Registration failed. Please try again.");
     }
   };
-
-
   return (
-    <div className='w-screen min-h-screen flex justify-center items-center bg-gradient-to-b from-gray-100 to-gray-700'>
-      <div className='w-3/4 h-3/4 flex justify-start items-center shadow-2xl'>
-        <div className='w-1/2 h-full'>
-          <img
-            src='https://img.freepik.com/vector-premium/hombre-trabajando-su-computadora_801395-340.jpg' // Local image
-            alt='SignUp page'
-            className='w-full h-full'
+  <div className='w-screen min-h-screen flex justify-center items-center bg-gradient-to-b from-gray-100 to-gray-700 px-4 py-6'>
+    <div className='w-full max-w-4xl flex flex-col md:flex-row justify-center items-center shadow-2xl bg-white rounded-lg overflow-hidden'>
+      {/* Image Section */}
+      <div className='w-full md:w-1/2 h-64 md:h-full'>
+        <img
+          src='https://img.freepik.com/vector-premium/hombre-trabajando-su-computadora_801395-340.jpg'
+          alt='SignUp page'
+          className='w-full h-full object-cover'
+        />
+      </div>
+
+      {/* Form Section */}
+      <div className='w-full md:w-1/2 h-full flex items-center justify-center flex-col p-6 space-y-3'>
+        <div className='flex justify-end items-center space-x-1 self-end text-sm'>
+          <p className='underline text-gray-700'>Already a user?</p>
+          <p className='underline cursor-pointer text-blue-700' onClick={handlenavigate}>SignIn</p>
+        </div>
+
+        <div className='w-full max-w-xs'>
+          <label htmlFor='FirstName' className='block text-sm font-medium text-gray-700 mb-1'>FirstName</label>
+          <input
+            id='FirstName'
+            type='text'
+            value={FirstName}
+            onChange={handleFirstName}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${nameError ? 'border-red-700' : 'border-gray-500'}`}
+            placeholder='Enter your first name'
           />
         </div>
-        <div className='w-1/2 h-full flex items-center justify-center flex-col p-4 space-y-3'>
-          <div className='flex justify-end items-center space-x-1'>
-            <p className='underline text-gray-700 text-sm ml-25'>Already a user?</p>
-            <p className='underline cursor-pointer text-blue-700 text-sm' onClick={handlenavigate}>SignIn</p>
-          </div>
-          <div className='w-64'>
-            <label htmlFor='FirstName' className='block text-sm font-medium text-gray-700 mb-1'>FirstName</label>
-            <input
-              id='FirstName'
-              type='text'
-              value={FirstName}
-              onChange={handleFirstName}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${nameError ? 'border-red-700' : 'border-gray-500'}`}
-              placeholder='Enter your first name'
-            ></input>
-          </div>
-          <div className='w-64'>
-            <label htmlFor='SecondName' className='block text-sm font-medium text-gray-700 mb-1'>SecondName</label>
-            <input
-              id='SecondName'
-              value={LastName}
-              onChange={handleSecondName}
-              type='text'
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${nameError ? 'border-red-700' : 'border-gray-500'}`}
-              placeholder='Enter your second name'
-            ></input>
-          </div>
-          <div className="w-64">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={Email}
-              onChange={handleEmail}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${emailError ? 'border-red-700' : 'border-gray-500'}`}
-              placeholder="Enter your email"
-            />
-          </div>
-          <div className='w-64'>
-            <label htmlFor='password' className='block text-sm font-medium text-gray-700 mb-1'>Password</label>
-            <input
-              id='password'
-              type='password'
-              value={password}
-              onChange={handlepassword}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${passwordError ? 'border-red-700' : 'border-gray-500'}`}
-              placeholder='Enter your password'
-            >
-            </input>
-          </div>
-          <div className='w-64 flex items-center '>
-            <p className='underline text-blue-700 text-sm cursor-pointer'>Forgot Password?</p>
-          </div>
-          <div className='w-64'>
-            <button
-              className={`w-full mt-5 py-2 rounded-md font-semibold text-white ${Error || emailError || passwordError || !Email || !password
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              disabled={!!emailError || !!passwordError || !Email || !password}
-              onClick={handleSignUp}>
-              SignUp
-            </button>
-          </div>
-          <div className='w-64 flex justify-center'>
-            {Error && <p className='text-red-500 text-sm font-medium'>{Error}</p>}
-            {success && <p className='text-emerald-600 text-sm font-medium px-4 py-2 rounded-md'>{success}</p>}
-          </div>
+
+        <div className='w-full max-w-xs'>
+          <label htmlFor='SecondName' className='block text-sm font-medium text-gray-700 mb-1'>SecondName</label>
+          <input
+            id='SecondName'
+            value={LastName}
+            onChange={handleSecondName}
+            type='text'
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${nameError ? 'border-red-700' : 'border-gray-500'}`}
+            placeholder='Enter your second name'
+          />
+        </div>
+
+        <div className="w-full max-w-xs">
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={Email}
+            onChange={handleEmail}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${emailError ? 'border-red-700' : 'border-gray-500'}`}
+            placeholder="Enter your email"
+          />
+        </div>
+
+        <div className='w-full max-w-xs'>
+          <label htmlFor='password' className='block text-sm font-medium text-gray-700 mb-1'>Password</label>
+          <input
+            id='password'
+            type='password'
+            value={password}
+            onChange={handlepassword}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black ${passwordError ? 'border-red-700' : 'border-gray-500'}`}
+            placeholder='Enter your password'
+          />
+        </div>
+
+        <div className='w-full max-w-xs flex items-center'>
+          <p className='underline text-blue-900 text-sm cursor-pointer'>Forgot Password?</p>
+        </div>
+
+        <div className='w-full max-w-xs'>
+          <button
+            className={`w-full mt-5 py-2 rounded-md font-semibold text-white ${Error || emailError || passwordError || !Email || !password
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            disabled={!!emailError || !!passwordError || !Email || !password}
+            onClick={handleSignUp}>
+            SignUp
+          </button>
+        </div>
+
+        <div className='w-full max-w-xs flex justify-center'>
+          {Error && <p className='text-red-500 text-sm font-medium'>{Error}</p>}
+          {success && <p className='text-emerald-600 text-sm font-medium px-4 py-2 rounded-md'>{success}</p>}
         </div>
       </div>
     </div>
+  </div>
   )
-}
+  }
 
-export default SignUp
+  export default SignUp;

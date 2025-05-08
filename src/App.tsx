@@ -2,7 +2,7 @@ import Login from "./Authentication_Pages/Login"
 import SignUp from "./Authentication_Pages/SignUp"
 import {BrowserRouter,Routes,Route} from 'react-router-dom'
 import WelcomePage from "./Welcome_Page/WelcomePage"
-import Main from "./AI_Agent/Main"
+import Main from "./Chat_Interface/Main"
 function App() {
   return (
     <>
@@ -11,7 +11,7 @@ function App() {
           <Route path="/" element={<WelcomePage/>}/>
           <Route path="/Login" element={<Login/>}/>
           <Route path="/SignUp" element={<SignUp/>}/>
-          <Route path="/Main/:userID" element={<Main/>}/>
+          <Route path="/Main" element={<Main/>}/>
         </Routes>
       </BrowserRouter>
     </>

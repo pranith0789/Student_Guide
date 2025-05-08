@@ -67,59 +67,145 @@ app.post("/Register", async (req, res) => {
   }
 });
 
+// app.post("/search", async (req, res) => {
+//   console.log("Received search request:", req.body);
+//   const { input,user_id} = req.body;
+//   if (!input || !input.trim()) {
+//     console.log("Invalid input received");
+//     return res.status(400).json({
+//       answer: "Please provide a valid input",
+//       sources: [],
+//     });
+//   }
+
+//   try {
+//     // const user = await User.findOne({ Email: email });
+//     // if (!user) {
+//     //   console.log("User not found for email:", email);
+//     //   return res.status(401).json({
+//     //     answer: "User not found. Please login again.",
+//     //     sources: [],
+//     //   });
+//     // }
+
+//     // console.log("Forwarding request to FastAPI with user_id:", user._id.toString());
+//     const fastapiResponse = await axios.post("http://localhost:8000/query", {
+//       prompt: input,
+//       user_id: user_id
+//     });
+
+//     console.log("FastAPI response received:", fastapiResponse.data);
+
+//     // Validate response structure
+//     if (!fastapiResponse.data || typeof fastapiResponse.data.answer !== "string" || !Array.isArray(fastapiResponse.data.sources)) {
+//       console.error("Invalid FastAPI response structure:", fastapiResponse.data);
+//       return res.status(500).json({
+//         answer: "Invalid response from AI server",
+//         sources: [],
+//       });
+//     }
+
+//     const formattedResponse = {
+//       answer: fastapiResponse.data.answer,
+//       sources: fastapiResponse.data.sources,
+//       suggestion:  typeof fastapiResponse.data.suggestion === "string" ? fastapiResponse.data.suggestion : ""
+//     };
+
+//     console.log("Sending formatted response to frontend:", formattedResponse);
+//     return res.status(200).json(formattedResponse);
+//   } catch (err) {
+//     console.error("Error in search endpoint:", err);
+//     return res.status(500).json({
+//       answer: "Sorry, I encountered an error while processing your request. Please try again.",
+//       sources: [],
+//     });
+//   }
+// });
+
 app.post("/search", async (req, res) => {
   console.log("Received search request:", req.body);
-  const { input,user_id} = req.body;
+  const { input, userId } = req.body;
+
+  // Validate input
   if (!input || !input.trim()) {
-    console.log("Invalid input received");
-    return res.status(400).json({
-      answer: "Please provide a valid input",
-      sources: [],
-    });
+      console.log("Invalid prompt received");
+      return res.status(400).json({
+          answer: "Please provide a valid prompt",
+          sources: [],
+      });
+  }
+  if (!userId || !userId.trim()) {
+      console.log("Invalid user_id received");
+      return res.status(400).json({
+          answer: "Please provide a valid user_id",
+          sources: [],
+      });
+  }
+
+  // Optional: Validate user_id against MongoDB
+  try {
+      const user = await User.findById(userId);
+      if (!user) {
+          console.log("User not found for user_id:", userId);
+          return res.status(401).json({
+              answer: "User not found. Please log in again.",
+              sources: [],
+          });
+      }
+  } catch (err) {
+      console.error("Error validating user:", err);
+      return res.status(500).json({
+          answer: "Error validating user",
+          sources: [],
+      });
   }
 
   try {
-    // const user = await User.findOne({ Email: email });
-    // if (!user) {
-    //   console.log("User not found for email:", email);
-    //   return res.status(401).json({
-    //     answer: "User not found. Please login again.",
-    //     sources: [],
-    //   });
-    // }
-
-    // console.log("Forwarding request to FastAPI with user_id:", user._id.toString());
-    const fastapiResponse = await axios.post("http://localhost:8000/query", {
-      prompt: input,
-      user_id: user_id
-    });
-
-    console.log("FastAPI response received:", fastapiResponse.data);
-
-    // Validate response structure
-    if (!fastapiResponse.data || typeof fastapiResponse.data.answer !== "string" || !Array.isArray(fastapiResponse.data.sources)) {
-      console.error("Invalid FastAPI response structure:", fastapiResponse.data);
-      return res.status(500).json({
-        answer: "Invalid response from AI server",
-        sources: [],
+      const fastapiResponse = await axios.post("http://localhost:8000/query", {
+          prompt:input,
+          userId
       });
-    }
 
-    const formattedResponse = {
-      answer: fastapiResponse.data.answer,
-      sources: fastapiResponse.data.sources,
-      suggestion:  typeof fastapiResponse.data.suggestion === "string" ? fastapiResponse.data.suggestion : ""
-    };
+      console.log("FastAPI response received:", fastapiResponse.data);
 
-    console.log("Sending formatted response to frontend:", formattedResponse);
-    return res.status(200).json(formattedResponse);
+      // Validate response structure
+      if (!fastapiResponse.data || typeof fastapiResponse.data.answer !== "string" || !Array.isArray(fastapiResponse.data.sources)) {
+          console.error("Invalid FastAPI response structure:", fastapiResponse.data);
+          return res.status(500).json({
+              answer: "Invalid response from AI server",
+              sources: [],
+          });
+      }
+
+      const formattedResponse = {
+          answer: fastapiResponse.data.answer,
+          sources: fastapiResponse.data.sources,
+          suggestion: typeof fastapiResponse.data.suggestion === "string" ? fastapiResponse.data.suggestion : ""
+      };
+
+      console.log("Sending formatted response to frontend:", formattedResponse);
+      return res.status(200).json(formattedResponse);
   } catch (err) {
-    console.error("Error in search endpoint:", err);
-    return res.status(500).json({
-      answer: "Sorry, I encountered an error while processing your request. Please try again.",
-      sources: [],
-    });
+      console.error("Error in search endpoint:", err);
+      return res.status(500).json({
+          answer: "Sorry, I encountered an error while processing your request. Please try again.",
+          sources: [],
+      });
   }
 });
+
+app.post("/user_query",async(req,res)=>{
+  const{user_id} = req.body
+  try{
+    const user_previous_queries = await axios.post("http://localhost:8000/user_queries",{
+      userId:user_id
+    })
+
+    
+  }
+  catch(err){
+    return res.status(500).json({"message":"Can't fetch information"})
+  }
+})
 
 app.listen(3000, () => console.log("Server is running on port 3000"));

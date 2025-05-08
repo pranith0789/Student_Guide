@@ -24,13 +24,15 @@ SIMILARITY_THRESHOLD = 0.05  # Stricter threshold for exact matches
 
 class QueryRequest(BaseModel):
     prompt: str
-    user_id: str
+    userId: str
 
 class QueryResponse(BaseModel):
     answer: str
     sources: List[str]
     suggestion : str
     
+class QueriesResponse(BaseModel):
+    Queries:List[str]
 
 # Initialize components
 def initialize_components():
@@ -90,11 +92,12 @@ response_memory_index = faiss.IndexFlatL2(384)
 query_response_metadata = []
 
 # Store query with response
-def store_query_response(query: str, response: str):
+def store_query_response(query: str, response: str,user_id:str):
     try:
         vector = embedding_function.embed_query(query)
         response_memory_index.add(np.array([vector], dtype=np.float32))
         query_response_metadata.append({
+            "userId":user_id,
             "query": query,
             "response": response,
             "timestamp": datetime.datetime.utcnow().isoformat()
@@ -106,21 +109,43 @@ def store_query_response(query: str, response: str):
         print(f"Error storing query response: {e}")
 
 # Get similar user queries
-def get_similar_user_queries(prompt: str, user_id:str,k: int = 3):
+def get_similar_user_queries(prompt: str, user_id: str, k: int = 3) -> List[str]:
     if user_memory_index.ntotal == 0:
         return []
 
+    # Filter metadata for the given user_id
+    user_indices = [
+        i for i, meta in enumerate(user_query_metadata)
+        if meta["user_id"] == user_id
+    ]
+
+    if not user_indices:
+        return []  # No queries found for this user_id
+
+    # Get the prompt's embedding
     vector = embedding_function.embed_query(prompt)
+
+    # Perform similarity search on all vectors
     distances, indices = user_memory_index.search(np.array([vector], dtype=np.float32), k)
 
+    # Filter results to include only those belonging to the user_id
     results = []
-    for i in indices[0]:
-        if i < len(user_query_metadata):
-            results.append(user_query_metadata[i]["query"])
-    return results
+    for dist, idx in zip(distances[0], indices[0]):
+        if idx in user_indices and idx < len(user_query_metadata):
+            results.append({
+                "query": user_query_metadata[idx]["query"],
+                "distance": float(dist),
+                "timestamp": user_query_metadata[idx]["timestamp"]
+            })
+
+    # Sort by distance and limit to k results
+    results = sorted(results, key=lambda x: x["distance"])[:k]
+
+    # Return only the query strings (or modify to include other fields if needed)
+    return [result["query"] for result in results]
 
 # Get past responses with stricter matching
-def get_stored_response(prompt: str):
+def get_stored_response(prompt: str,user_id:str):
     try:
         if response_memory_index.ntotal == 0:
             return None
@@ -225,6 +250,14 @@ async def youtube_response(prompt: str, api_key: str):
 def clean_response(text: str) -> str:
     return re.sub(r'<think>.*?</think>\n*', '', text, flags=re.DOTALL)
 
+def fetch_user_queries(user_id:str) -> List[str]:
+    return[
+        entry["query"]
+        for entry in user_query_metadata
+        if entry["user_id"] == user_id
+    ]
+    
+
 # FastAPI app
 app = FastAPI()
 
@@ -282,7 +315,7 @@ async def process_query(request: QueryRequest):
             used_sources.append("YouTube")
 
         # Get similar queries
-        similar_queries = get_similar_user_queries(request.prompt,request.user_id, k=3)
+        similar_queries = get_similar_user_queries(request.prompt,request.userId, k=3)
         context = f"Combine responses into a single paragraph and answer the question:\n{final_response}\nPast similar queries:\n"
         context += "\n".join(similar_queries) if similar_queries else "No past queries found."
 
@@ -304,8 +337,8 @@ async def process_query(request: QueryRequest):
         print(Topics)
 
         # Store query and response
-        store_user_query(request.prompt)
-        store_query_response(request.prompt, cleaned_answer)
+        store_user_query(request.prompt,request.userId)
+        store_query_response(request.prompt, cleaned_answer,request.userId)
 
         if not local_sources:
             online_resources = used_sources + youtube_videos
@@ -317,3 +350,9 @@ async def process_query(request: QueryRequest):
     except Exception as e:
         print(f"Error processing query: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/user_queries", response_model=QueriesResponse)
+async def fetch_queries(request:QueryRequest):
+    queries = fetch_user_queries(request.userId)
+    return QueriesResponse(Queries=queries)
+    
