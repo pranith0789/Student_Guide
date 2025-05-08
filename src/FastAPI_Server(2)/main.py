@@ -26,6 +26,9 @@ class QueryRequest(BaseModel):
     prompt: str
     userId: str
 
+class UserQueryRequest(BaseModel):
+    userId: str
+
 class QueryResponse(BaseModel):
     answer: str
     sources: List[str]
@@ -355,7 +358,7 @@ async def process_query(request: QueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/user_queries", response_model=QueriesResponse)
-async def fetch_queries(request:QueryRequest):
+async def fetch_queries(request: UserQueryRequest):
     queries = fetch_user_queries(request.userId)
     print(queries)
     return QueriesResponse(Queries=queries)
