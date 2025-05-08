@@ -335,6 +335,9 @@ async def process_query(request: QueryRequest):
         
         Topics = ollama_llm.invoke(suggestion_prompt)
         print(Topics)
+        queries = fetch_user_queries(request.userId)
+        print(queries)
+        
 
         # Store query and response
         store_user_query(request.prompt,request.userId)
@@ -354,5 +357,6 @@ async def process_query(request: QueryRequest):
 @app.post("/user_queries", response_model=QueriesResponse)
 async def fetch_queries(request:QueryRequest):
     queries = fetch_user_queries(request.userId)
+    print(queries)
     return QueriesResponse(Queries=queries)
     

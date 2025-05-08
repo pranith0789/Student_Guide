@@ -4,10 +4,6 @@ type SidebarProps = {
   isOpen: boolean;
 };
 
-useEffect(()=>{
-    
-})
-
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   return (
     <div
