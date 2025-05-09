@@ -195,22 +195,30 @@ app.post("/search", async (req, res) => {
 });
 
 app.post("/user_query", async (req, res) => {
-  const { user_id } = req.body;
+  const { userId } = req.body;
+  console.log(req.body)
+  
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required" });
+  }
+
   try {
     const userPreviousQueries = await axios.post("http://localhost:8000/user_queries", {
-      userId: user_id,
+      userId: userId,
     });
 
     const pastQueries = {
       Queries: userPreviousQueries.data.Queries, // <- correctly accessing `.data`
     };
+    console.log(pastQueries)
 
     return res.status(200).json(pastQueries);
   } catch (err) {
-    console.error("Error fetching user queries:", err);
+    console.error("Error fetching user queries:", err.response ? err.response.data : err);
     return res.status(500).json({ message: "Can't fetch information" });
   }
 });
+
 
 
 app.listen(3000, () => console.log("Server is running on port 3000"));

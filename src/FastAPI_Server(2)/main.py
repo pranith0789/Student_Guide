@@ -9,6 +9,7 @@ import datetime
 import httpx
 import wikipedia
 import re
+import os
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
@@ -72,12 +73,27 @@ ollama_llm = Ollama(model='llama3.2')
 small_llm = Ollama(model='gemma3:1b')
 
 # Initialize user memory index
-user_memory_index = faiss.IndexFlatL2(384)
-user_query_metadata = []
+
+
+if os.path.exists(USER_MEMORY_INDEX):
+    user_memory_index = faiss.read_index(USER_MEMORY_INDEX)
+else:
+    user_memory_index = faiss.IndexFlatL2(384)
+
+if os.path.exists(USER_METADATA_FILE):
+    with open(USER_METADATA_FILE, "r", encoding="utf-8") as f:
+        user_query_metadata = json.load(f)
+else:
+    user_query_metadata = []
+
 
 # Store user query
 def store_user_query(query: str,user_id:str):
     try:
+        for entry in user_query_metadata:
+            if entry["user_id"] == user_id and entry["query"].strip().lower() == query.strip().lower():
+                return
+        
         vector = embedding_function.embed_query(query)
         user_memory_index.add(np.array([vector], dtype=np.float32))
         user_query_metadata.append({
@@ -91,12 +107,25 @@ def store_user_query(query: str,user_id:str):
     except Exception as e:
         print(f"Error storing user query: {e}")
 
-response_memory_index = faiss.IndexFlatL2(384)
-query_response_metadata = []
+if os.path.exists(RESPONSE_MEMORY_INDEX):
+    response_memory_index = faiss.read_index(RESPONSE_MEMORY_INDEX)
+else:
+    response_memory_index = faiss.IndexFlatL2(384)
+
+if os.path.exists(RESPONSE_METADATA_FILE):
+    with open(RESPONSE_METADATA_FILE, "r", encoding="utf-8") as f:
+        query_response_metadata = json.load(f)
+else:
+    query_response_metadata = []
+
 
 # Store query with response
 def store_query_response(query: str, response: str,user_id:str):
     try:
+        
+        for entry in query_response_metadata:
+            if entry["user_id"] == user_id and entry["query"].strip().lower() == query.strip().lower():
+                return 
         vector = embedding_function.embed_query(query)
         response_memory_index.add(np.array([vector], dtype=np.float32))
         query_response_metadata.append({
@@ -338,8 +367,6 @@ async def process_query(request: QueryRequest):
         
         Topics = ollama_llm.invoke(suggestion_prompt)
         print(Topics)
-        queries = fetch_user_queries(request.userId)
-        print(queries)
         
 
         # Store query and response
@@ -357,9 +384,12 @@ async def process_query(request: QueryRequest):
         print(f"Error processing query: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# POST method (if some frontend sends JSON body)
 @app.post("/user_queries", response_model=QueriesResponse)
-async def fetch_queries(request: UserQueryRequest):
+async def fetch_queries_post(request: UserQueryRequest):
     queries = fetch_user_queries(request.userId)
-    print(queries)
+    print(f"Fetched (POST) queries for user {request.userId}: {queries}")
     return QueriesResponse(Queries=queries)
+
     

@@ -6,28 +6,36 @@ type SidebarProps = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userID, setUserId] = useState<string | null>(null);
   const [queries, setQueries] = useState<string[]>([]);
 
   useEffect(() => {
+    const savedUserId = localStorage.getItem("userID")
+    console.log(savedUserId)
+    if(savedUserId){
+      setUserId(savedUserId)
+    }
+  },[])
+
+  useEffect(() => {
     const fetchQueries = async () => {
-      const savedUserId = localStorage.getItem("userId");
-      if (savedUserId) {
-        setUserId(savedUserId);
-        try {
-          const { data } = await axios.post<{ Queries: string[] }>(
-            "http://localhost:3000/user_query",
-            { userId: savedUserId }
-          );
-          setQueries(data.Queries);
-        } catch (error) {
-          console.error("Failed to fetch queries:", error);
-        }
+      if (!userID) return; // Ensure userID is available
+  
+      try {
+        const { data } = await axios.post<{ Queries: string[] }>(
+          "http://localhost:3000/user_query",
+          { userId: userID }
+        );
+        console.log("Fetched Queries:", data);
+        setQueries(data.Queries);
+      } catch (error) {
+        console.error("Failed to fetch queries:", error);
       }
     };
-
+  
     fetchQueries();
-  }, []); // <-- empty dependency array to avoid infinite loop
+  }, [userID]); // <-- re-run when userID is set
+   // <-- empty dependency array to avoid infinite loop
 
   return (
     <div
@@ -40,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           <h3 className="text-sm font-medium text-gray-400">Recent Queries</h3>
           <ul className="mt-2 space-y-1 text-sm">
             {queries.map((query, index) => (
-              <li key={index} className="truncate">🔍 {query}</li>
+              <li key={index} className="truncate text-white">🔍 {query}</li>
             ))}
           </ul>
         </div>
