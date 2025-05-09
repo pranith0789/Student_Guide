@@ -10,18 +10,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const [queries, setQueries] = useState<string[]>([]);
 
   useEffect(() => {
-    const savedUserId = localStorage.getItem("userID")
-    console.log(savedUserId)
-    if(savedUserId){
-      setUserId(savedUserId)
+    const savedUserId = localStorage.getItem("userID");
+    if (savedUserId) {
+      setUserId(savedUserId);
     }
-  },[])
+  }, []);
 
   useEffect(() => {
     const fetchQueries = async () => {
-      if (!userID) return; // Ensure userID is available
-  
+      if (!userID) {
+        console.log("No userID available yet");
+        return;
+      }
+
       try {
+        console.log("Fetching queries for userID:", userID);
         const { data } = await axios.post<{ Queries: string[] }>(
           "http://localhost:3000/user_query",
           { userId: userID }
@@ -32,10 +35,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         console.error("Failed to fetch queries:", error);
       }
     };
-  
+
     fetchQueries();
-  }, [userID]); // <-- re-run when userID is set
-   // <-- empty dependency array to avoid infinite loop
+  }, [userID]);
 
   return (
     <div
