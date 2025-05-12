@@ -37,6 +37,13 @@ class QueryResponse(BaseModel):
     
 class QueriesResponse(BaseModel):
     Queries:List[str]
+    
+class UserQueryResponse(BaseModel):
+    response: str
+
+class pastUserQueryRequest(BaseModel):
+    userId : str
+    query: str
 
 # Initialize components
 def initialize_components():
@@ -124,7 +131,7 @@ def store_query_response(query: str, response: str,user_id:str):
     try:
         
         for entry in query_response_metadata:
-            if entry["user_id"] == user_id and entry["query"].strip().lower() == query.strip().lower():
+            if entry["userId"] == user_id and entry["query"].strip().lower() == query.strip().lower():
                 return 
         vector = embedding_function.embed_query(query)
         response_memory_index.add(np.array([vector], dtype=np.float32))
@@ -273,7 +280,8 @@ async def youtube_response(prompt: str, api_key: str):
         if "items" in data and data["items"]:
             video = data["items"][0]
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
-            return f"YouTube: {video['snippet']['title']} ({video_url})"
+            # return f"YouTube: {video['snippet']['title']} ({video_url})"
+            return video_url
         return "No relevant videos found on YouTube."
     except Exception as e:
         return f"Error fetching from YouTube: {e}"
@@ -288,6 +296,13 @@ def fetch_user_queries(user_id:str) -> List[str]:
         for entry in user_query_metadata
         if entry["user_id"] == user_id
     ]
+    
+def fetch_user_query_response(user_id:str,query:str) -> str:
+    for entry in query_response_metadata:
+        if(entry["userId"] == user_id and entry["query"].strip().lower()==query.strip().lower()):
+            return entry["response"]
+    
+    return ""
     
 
 # FastAPI app
@@ -342,8 +357,8 @@ async def process_query(request: QueryRequest):
         # Uncomment to enable YouTube
         if "YouTube" in sources and "YouTube" not in used_sources:
             youtuberesponse = await youtube_response(request.prompt, api_key="AIzaSyA8DC-VlDt0BTfC9jEonSStDg3yVNEokaU")
-            refined_response = small_llm.invoke(f"Remove the text and give me only youtube video link{youtuberesponse}")
-            youtube_videos.append(refined_response)
+            # refined_response = small_llm.invoke(f"Remove the text and give me only youtube video link{youtuberesponse}")
+            youtube_videos.append(youtuberesponse)
             used_sources.append("YouTube")
 
         # Get similar queries
@@ -392,4 +407,14 @@ async def fetch_queries_post(request: UserQueryRequest):
     print(f"Fetched (POST) queries for user {request.userId}: {queries}")
     return QueriesResponse(Queries=queries)
 
+@app.post("/Query_Response",response_model=UserQueryResponse)
+async def fetch_Query_Response(request:pastUserQueryRequest):
+    print(f"Received query response request for user {request.userId}:{request.query}")
+    response = fetch_user_query_response(request.userId,request.query)
+    if not response:
+        print(f"No response found for user {request.userId}, query: {request.query}")
+        return UserQueryResponse(response="")  # Return empty string instead of raising error
+    return UserQueryResponse(response=response)
+    
+    
     

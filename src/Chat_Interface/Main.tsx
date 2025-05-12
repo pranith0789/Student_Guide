@@ -11,6 +11,9 @@ const Main = () => {
   const [suggestion, setSuggestion] = useState<string>("");
   const [userId, setUserId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [isNewchat, setisNewChat] = useState<boolean>(false)
+  
+
 
   useEffect(() => {
     const savedInput = localStorage.getItem("lastInput");
@@ -72,9 +75,22 @@ const Main = () => {
 
   return (
     <div className="min-h-screen w-screen bg-gray-800">
-      <Navbar setSidebarOpen={setSidebarOpen} />
+      <Navbar setSidebarOpen={setSidebarOpen} onNewChat={() => {
+                  setisNewChat(true);
+                  setInput("");
+                  setResponse("");
+                  setSources([]);
+                  setSuggestion("");
+      }}/>
       <div className="flex pt-16">
-        {sidebarOpen && <Sidebar isOpen={sidebarOpen}/>}
+        {sidebarOpen && <Sidebar isOpen={sidebarOpen}
+        onQuerySelect = {(query:string, response:string) => {
+          setInput(query)
+          setResponse(response)
+          setSources([])
+          setSuggestion("")
+        }}
+        />}
 
         <div
           className={`transition-all duration-300 p-4 w-full ${
@@ -125,8 +141,12 @@ const Main = () => {
                     </ul>
                   </>
                 )}
-                <strong>Suggestion:</strong>
-                <p className="mb-2">{suggestion}</p>
+                {suggestion && suggestion.trim() && (
+                  <>
+                    <strong>Suggestion:</strong>
+                    <p className="mb-2">{suggestion}</p>
+                  </>
+                )}
               </div>
             )}
           </div>

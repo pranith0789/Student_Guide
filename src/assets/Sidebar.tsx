@@ -3,9 +3,10 @@ import axios from 'axios';
 
 type SidebarProps = {
   isOpen: boolean;
+  onQuerySelect : (query:string, response: string) => void 
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen,onQuerySelect }) => {
   const [userID, setUserId] = useState<string | null>(null);
   const [queries, setQueries] = useState<string[]>([]);
 
@@ -39,9 +40,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     fetchQueries();
   }, [userID]);
 
+  const handleQuerySelect = async (query:string) => {
+    try{
+      const {data} = await axios.post<{response:string}>(
+        "http://localhost:3000/query_response",
+        {
+          query:query,
+          userID : userID
+        }
+      )
+        if(data.response){
+          onQuerySelect(query,data.response)
+  
+        }else{
+          console.error("No response found for query")
+        }
+    }
+    
+    catch(error){
+      console.error("Error fetching query response:query")
+    }
+  }
+
   return (
     <div
-      className={`fixed top-16 left-0 h-screen w-60 bg-gray-900 text-white p-4 shadow-lg z-40 transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+      className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-60 bg-gray-900 text-white p-4 shadow-lg z-40 transform transition-transform duration-300 overflow-y-auto ${isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
     >
       {/* Render fetched queries */}
@@ -50,8 +73,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           <h3 className="text-sm font-medium text-gray-400">Recent Queries</h3>
           <ul className="mt-2 space-y-1 text-sm">
             {queries.map((query, index) => (
-              <li key={index} className="truncate text-white">🔍 {query}</li>
+              <li
+                key={index}
+                onClick={() => handleQuerySelect(query)}
+                className="truncate text-white mb-5 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg shadow-sm transition duration-200"
+              >
+                🔍 {query}
+              </li>
             ))}
+            
           </ul>
         </div>
       )}

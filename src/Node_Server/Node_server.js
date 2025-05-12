@@ -219,6 +219,30 @@ app.post("/user_query", async (req, res) => {
   }
 });
 
+app.post("/query_response", async(req,res) => {
+  const {userID,query} = req.body
+  console.log(req.body)
+  if(!userID){
+    console.log("error")
+    return res.status(400).json({"message":"UserID is mandatory"})
+  }
+
+  try{
+      const query_response = await axios.post("http://localhost:8000/Query_Response",{
+        userId:userID,
+        query:query
+      })
+      console.log(query_response.data)
+      const past_query_response = {
+        response : query_response.data.response
+      }
+
+      return res.status(200).json(past_query_response)
+
+  }catch(err){
+    return res.status(500).json({"message":"can't fetch information"})
+  }
+})
 
 
 app.listen(3000, () => console.log("Server is running on port 3000"));
